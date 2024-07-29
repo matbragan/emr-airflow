@@ -3,10 +3,10 @@ from pyspark.sql.types import StructType, StructField, StringType, DateType
 from faker import Faker
 
 BUCKET_NAME = 'panzer-development'
-S3_FOLDER = 'emr_development/faker_people'
+S3_FOLDER = 'emr_development/users'
 
 spark = SparkSession.builder \
-    .appName('Faker People') \
+    .appName('Sparking Users') \
     .getOrCreate()
 
 fake = Faker('pt_BR')
@@ -18,7 +18,7 @@ schema = StructType([
 ])
 
 
-data = [(fake.name(), fake.state(), fake.birthday()) for _ in range(1000)]
+data = [(fake.name(), fake.state(), fake.date_of_birth()) for _ in range(1000)]
 
 df = spark.createDataFrame(data, schema)
 
