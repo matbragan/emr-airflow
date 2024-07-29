@@ -7,36 +7,18 @@ from airflow.providers.amazon.aws.operators.emr import (
     EmrTerminateJobFlowOperator
 )
 from airflow.providers.amazon.aws.sensors.emr import EmrJobFlowSensor, EmrStepSensor
-from airflow.providers.amazon.aws.hooks.s3 import S3Hook
 from airflow.operators.python import PythonOperator
 
+from emr_development.constants import BUCKET_NAME, STEPS_DIR
+from emr_development.utils import (
+    _upload_scripts_to_s3,
+    get_scripts_dir,
+    create_emr_step
+)
 from emr_development.emr_config import JOB_FLOW_OVERRIDES
-from emr_development.constants import BUCKET_NAME, SCRIPTS
 
 
-# -------- Aux Functions -------- #
-def _local_to_s3(bucket_name, s3_file, local_file):
-    s3 = S3Hook(aws_conn_id='aws_default')
-    s3.load_file(bucket_name=bucket_name, key=s3_file, filename=local_file, replace=True)
-
-def upload_files_to_s3(bucket_name, scripts):
-    for script in scripts:
-        _local_to_s3(bucket_name, script['s3_script'], script['local_script'])
-
-
-def create_emr_step(bucket_name, s3_script):
-    step = {
-        'Name': f'run {s3_script}',
-        'ActionOnFailure': 'CONTINUE',
-        'HadoopJarStep': {
-            'Jar': 'command-runner.jar',
-            'Args': [
-                '/usr/bin/spark-submit',
-                f's3://{bucket_name}/{s3_script}'
-            ]
-        },
-    }
-    return step
+STEPS_SCRIPTS_DIR = get_scripts_dir(STEPS_DIR)
 
 
 # ------------- DAG ------------- #
@@ -56,8 +38,8 @@ dag = DAG(
 upload_scripts_to_s3 = PythonOperator(
     dag=dag,
     task_id='upload_scripts_to_s3',
-    python_callable=upload_files_to_s3,
-    op_kwargs={'bucket_name': BUCKET_NAME, 'scripts': SCRIPTS}
+    python_callable=_upload_scripts_to_s3,
+    op_kwargs={'bucket_name': BUCKET_NAME}
 )
 
 create_emr_cluster = EmrCreateJobFlowOperator(
@@ -86,30 +68,27 @@ terminate_emr_cluster = EmrTerminateJobFlowOperator(
     aws_conn_id='aws_default'
 )
 
-for script in SCRIPTS:
-    s3_script = script['s3_script']
+for step_script_dir in STEPS_SCRIPTS_DIR:
+    spark_step = create_emr_step(BUCKET_NAME, step_script_dir)
+    step_file_name = step_script_dir.split('/')[-1].split('.')[0]
     
-    if s3_script.endswith('.py'):
-        spark_step = create_emr_step(BUCKET_NAME, s3_script)
-        spark_file_name = s3_script.split('/')[-1]
-        
-        run_spark_script = EmrAddStepsOperator(
-            dag=dag,
-            task_id=f'step_{spark_file_name}',
-            job_flow_id="{{ task_instance.xcom_pull(task_ids='create_emr_cluster', key='return_value') }}",
-            steps=[spark_step],
-            aws_conn_id='aws_default'
-        )
+    run_step_script = EmrAddStepsOperator(
+        dag=dag,
+        task_id=f'run_step_{step_file_name}',
+        job_flow_id="{{ task_instance.xcom_pull(task_ids='create_emr_cluster', key='return_value') }}",
+        steps=[spark_step],
+        aws_conn_id='aws_default'
+    )
 
-        wait_for_step_completion = EmrStepSensor(
-            dag=dag,
-            task_id=f'wait_for_step_{spark_file_name}',
-            job_flow_id="{{ task_instance.xcom_pull(task_ids='create_emr_cluster', key='return_value') }}",
-            step_id=f"{{ task_instance.xcom_pull(task_ids='step_{spark_file_name}', key='return_value')[0] }}",
-            aws_conn_id='aws_default',
-            target_states=['COMPLETED'],
-            failed_states=['CANCELLED', 'FAILED', 'INTERRUPTED'],
-            mode='reschedule'
-        )
+    wait_for_step_completion = EmrStepSensor(
+        dag=dag,
+        task_id=f'wait_for_step_{step_file_name}',
+        job_flow_id="{{ task_instance.xcom_pull(task_ids='create_emr_cluster', key='return_value') }}",
+        step_id="{{" + f" task_instance.xcom_pull(task_ids='run_step_{step_file_name}', key='return_value')[0] " + "}}",
+        aws_conn_id='aws_default',
+        target_states=['COMPLETED'],
+        failed_states=['CANCELLED', 'FAILED', 'INTERRUPTED'],
+        mode='reschedule'
+    )
 
-        wait_for_cluster_ready >> run_spark_script >> wait_for_step_completion >> terminate_emr_cluster
+    wait_for_cluster_ready >> run_step_script >> wait_for_step_completion >> terminate_emr_cluster
