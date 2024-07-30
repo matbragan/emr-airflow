@@ -13,7 +13,7 @@ spark = SparkSession.builder \
     .getOrCreate()
 
 data = []
-for num in range(NUM_OF_ITERATIONS):
+for num in range(1, NUM_OF_ITERATIONS):
     new_sale = {
         'saleID': num,
         'userID': random.randint(1, NUM_OF_ITERATIONS),
