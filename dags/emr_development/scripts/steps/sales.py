@@ -15,9 +15,9 @@ spark = SparkSession.builder \
 data = []
 for num in range(1, NUM_OF_ITERATIONS):
     new_sale = {
-        'saleID': num,
-        'userID': random.randint(1, NUM_OF_ITERATIONS),
-        'productID': np.random.randint(10000, size=random.randint(1, 5)).tolist(),
+        'id': num,
+        'userId': random.randint(1, NUM_OF_ITERATIONS),
+        'productId': np.random.randint(10000, size=random.randint(1, 5)).tolist(),
         'paymentMthd': random.choice(['Credit card', 'Debit card', 'Digital wallet', 'Cash on delivery', 'Cryptocurrency']),
         'totalAmt': round(random.random() * 5000, 2),
         'invoiceTime': datetime.datetime.now().isoformat()
