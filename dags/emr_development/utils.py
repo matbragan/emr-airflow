@@ -36,7 +36,8 @@ def create_emr_step(bucket_name, script_dir):
             'Jar': 'command-runner.jar',
             'Args': [
                 '/usr/bin/spark-submit',
-                f's3://{bucket_name}/{s3_script_dir}'
+                f's3://{bucket_name}/{s3_script_dir}',
+                '--bucket_name', bucket_name,
             ]
         },
     }

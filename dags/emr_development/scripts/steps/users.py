@@ -1,10 +1,20 @@
+import argparse
+
 from pyspark.sql import SparkSession
 from pyspark.sql.types import StructType, StructField, StringType, DateType, IntegerType
 from faker import Faker
 
-BUCKET_NAME = 'panzer-development'
-S3_FOLDER = 'emr_development/users'
-NUM_OF_ITERATIONS = 1000
+
+parser = argparse.ArgumentParser()
+parser.add_argument('--bucket_name', type=str, required=True)
+parser.add_argument('--s3_folder', type=str, default='emr_development/users')
+parser.add_argument('--num_of_iterations', type=int, default=1000)
+args = parser.parse_args()
+
+BUCKET_NAME = args.bucket_name
+S3_FOLDER = args.s3_folder
+NUM_OF_ITERATIONS = args.num_of_iterations
+
 
 fake = Faker('pt_BR')
 
