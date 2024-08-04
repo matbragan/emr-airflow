@@ -21,6 +21,11 @@ Change the [`constants.py`](https://github.com/matbragan/emr-airflow/blob/main/d
 Change the scripts located on [dags/emr_development/scripts](https://github.com/matbragan/emr-airflow/tree/main/dags/emr_development/scripts) to have the required scripts to run the required project.  
 If necessary, change the [`emr_config.py`](https://github.com/matbragan/emr-airflow/blob/main/dags/emr_development/emr_config.py) to have the required cluster settings to run the required project.  
 
+If EMR is being run for the first time in this AWS account, it's necessary to create its default roles, which can be done through the code below:
+~~~sh
+aws emr create-default-roles
+~~~
+
 <hr>
 
 pt-br
@@ -42,4 +47,9 @@ make airflow-up
 
 Mude o [`constants.py`](https://github.com/matbragan/emr-airflow/blob/main/dags/emr_development/constants.py) com o bucket correto de sua aplicação.  
 Altere os scripts localizados em [dags/emr_development/scripts](https://github.com/matbragan/emr-airflow/tree/main/dags/emr_development/scripts) para ter os scripts necessários para rodar seu projeto.   
-Se necessário, altere o [`emr_config.py`](https://github.com/matbragan/emr-airflow/blob/main/dags/emr_development/emr_config.py) para ter as configurações de cluster necessárias para rodar seu projeto.
+Se necessário, altere o [`emr_config.py`](https://github.com/matbragan/emr-airflow/blob/main/dags/emr_development/emr_config.py) para ter as configurações de cluster necessárias para rodar seu projeto.   
+
+Se o EMR estiver sendo executado pela primeira vez nesta conta da AWS, é necessário criar suas funções padrões, que pode ser feito através do código abaixo:
+~~~sh
+aws emr create-default-roles
+~~~
