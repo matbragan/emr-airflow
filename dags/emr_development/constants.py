@@ -1,4 +1,4 @@
-BUCKET_NAME = 'panzer-development'
+BUCKET_NAME = 'unudutri-development'
 
 BOOTSTRAP_DIR = 'bootstrap'
 STEPS_DIR = 'steps'
