@@ -6,7 +6,6 @@ from airflow.providers.amazon.aws.operators.emr import (
     EmrCreateJobFlowOperator,
     EmrTerminateJobFlowOperator
 )
-from airflow.providers.amazon.aws.sensors.emr import EmrJobFlowSensor, EmrStepSensor
 from airflow.operators.python import PythonOperator
 
 from emr_development.constants import BUCKET_NAME, STEPS_DIR
@@ -46,20 +45,11 @@ create_emr_cluster = EmrCreateJobFlowOperator(
     dag=dag,
     task_id='create_emr_cluster',
     job_flow_overrides=JOB_FLOW_OVERRIDES,
+    deferrable=True,
     aws_conn_id='aws_default'
 )
 
-wait_for_cluster_ready = EmrJobFlowSensor(
-    dag=dag,
-    task_id='wait_for_cluster_ready',
-    job_flow_id="{{ task_instance.xcom_pull(task_ids='create_emr_cluster', key='return_value') }}",
-    aws_conn_id='aws_default',
-    target_states=['RUNNING', 'WAITING'],
-    failed_states=['TERMINATING', 'TERMINATED', 'TERMINATED_WITH_ERRORS'],
-    mode="reschedule"
-)
-
-upload_scripts_to_s3 >> create_emr_cluster >> wait_for_cluster_ready
+upload_scripts_to_s3 >> create_emr_cluster
 
 terminate_emr_cluster = EmrTerminateJobFlowOperator(
     dag=dag,
@@ -76,19 +66,9 @@ for step_script_dir in STEPS_SCRIPTS_DIR:
         dag=dag,
         task_id=f'run_step_{step_file_name}',
         job_flow_id="{{ task_instance.xcom_pull(task_ids='create_emr_cluster', key='return_value') }}",
+        deferrable=True,
         steps=[spark_step],
         aws_conn_id='aws_default'
     )
 
-    wait_for_step_completion = EmrStepSensor(
-        dag=dag,
-        task_id=f'wait_for_step_{step_file_name}',
-        job_flow_id="{{ task_instance.xcom_pull(task_ids='create_emr_cluster', key='return_value') }}",
-        step_id="{{" + f" task_instance.xcom_pull(task_ids='run_step_{step_file_name}', key='return_value')[0] " + "}}",
-        aws_conn_id='aws_default',
-        target_states=['COMPLETED'],
-        failed_states=['CANCELLED', 'FAILED', 'INTERRUPTED'],
-        mode='reschedule'
-    )
-
-    wait_for_cluster_ready >> run_step_script >> wait_for_step_completion >> terminate_emr_cluster
+    create_emr_cluster >> run_step_script >> terminate_emr_cluster
