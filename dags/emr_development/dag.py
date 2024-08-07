@@ -8,7 +8,7 @@ from airflow.providers.amazon.aws.operators.emr import (
 )
 from airflow.operators.python import PythonOperator
 
-from emr_development.constants import BUCKET_NAME, STEPS_DIR
+from emr_development.constants import BUCKET_NAME, SCRIPT_TYPES, STEPS_DIR
 from emr_development.utils import (
     _upload_scripts_to_s3,
     get_scripts_dir,
@@ -38,7 +38,7 @@ upload_scripts_to_s3 = PythonOperator(
     dag=dag,
     task_id='upload_scripts_to_s3',
     python_callable=_upload_scripts_to_s3,
-    op_kwargs={'bucket_name': BUCKET_NAME}
+    op_kwargs={'bucket_name': BUCKET_NAME, 'script_types': SCRIPT_TYPES}
 )
 
 create_emr_cluster = EmrCreateJobFlowOperator(

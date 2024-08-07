@@ -3,6 +3,11 @@ import os
 from airflow.providers.amazon.aws.hooks.s3 import S3Hook
 
 
+def get_project_name():
+    absdir = os.path.dirname(os.path.abspath(__file__))
+    return os.path.basename(absdir)
+
+
 def get_scripts_dir(script_type, directory='scripts'):
     absdir = os.path.dirname(os.path.abspath(__file__))
     files_path = os.path.join(absdir, directory, script_type)
@@ -18,8 +23,7 @@ def _local_to_s3(bucket_name, s3_file, local_file):
     s3.load_file(bucket_name=bucket_name, key=s3_file, filename=local_file, replace=True)
 
 
-def _upload_scripts_to_s3(bucket_name):
-    script_types = ['bootstrap', 'steps']
+def _upload_scripts_to_s3(bucket_name, script_types):
     for script_type in script_types:
         scripts_dir = get_scripts_dir(script_type)
         for script_dir in scripts_dir:
