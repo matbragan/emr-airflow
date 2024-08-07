@@ -10,14 +10,11 @@ from airflow.operators.python import PythonOperator
 
 from emr_development.constants import BUCKET_NAME, SCRIPT_TYPES, STEPS_DIR
 from emr_development.utils import (
-    _upload_scripts_to_s3,
     get_scripts_dir,
-    create_emr_step
+    get_s3_script_dir,
+    _upload_scripts_to_s3
 )
 from emr_development.emr_config import JOB_FLOW_OVERRIDES
-
-
-STEPS_SCRIPTS_DIR = get_scripts_dir(STEPS_DIR)
 
 
 # ------------- DAG ------------- #
@@ -58,16 +55,30 @@ terminate_emr_cluster = EmrTerminateJobFlowOperator(
     aws_conn_id='aws_default'
 )
 
+STEPS_SCRIPTS_DIR = get_scripts_dir(STEPS_DIR)
 for step_script_dir in STEPS_SCRIPTS_DIR:
-    spark_step = create_emr_step(BUCKET_NAME, step_script_dir)
+    s3_script_dir = get_s3_script_dir(step_script_dir)
     step_file_name = step_script_dir.split('/')[-1].split('.')[0]
+    
+    step = {
+        'Name': f'run {s3_script_dir}',
+        'ActionOnFailure': 'CONTINUE',
+        'HadoopJarStep': {
+            'Jar': 'command-runner.jar',
+            'Args': [
+                '/usr/bin/spark-submit',
+                f's3://{BUCKET_NAME}/{s3_script_dir}',
+                '--bucket_name', BUCKET_NAME,
+            ]
+        },
+    }
     
     run_step_script = EmrAddStepsOperator(
         dag=dag,
         task_id=f'run_step_{step_file_name}',
         job_flow_id="{{ task_instance.xcom_pull(task_ids='create_emr_cluster', key='return_value') }}",
         deferrable=True,
-        steps=[spark_step],
+        steps=[step],
         aws_conn_id='aws_default'
     )
 

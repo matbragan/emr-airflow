@@ -29,20 +29,3 @@ def _upload_scripts_to_s3(bucket_name, script_types):
         for script_dir in scripts_dir:
             s3_script_dir = get_s3_script_dir(script_dir)
             _local_to_s3(bucket_name, s3_script_dir, script_dir)
-
-
-def create_emr_step(bucket_name, script_dir):
-    s3_script_dir = get_s3_script_dir(script_dir)
-    step = {
-        'Name': f'run {s3_script_dir}',
-        'ActionOnFailure': 'CONTINUE',
-        'HadoopJarStep': {
-            'Jar': 'command-runner.jar',
-            'Args': [
-                '/usr/bin/spark-submit',
-                f's3://{bucket_name}/{s3_script_dir}',
-                '--bucket_name', bucket_name,
-            ]
-        },
-    }
-    return step
